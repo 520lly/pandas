@@ -5,29 +5,12 @@ if [ "${TRAVIS_OS_NAME}" != "linux" ]; then
    exit 0
 fi
 
-cd "$TRAVIS_BUILD_DIR"
+cd "$TRAVIS_BUILD_DIR"/doc
 echo "inside $0"
 
-git show --pretty="format:" --name-only HEAD~5.. --first-parent | grep -P "rst|txt|doc"
-
-if [ "$?" != "0" ]; then
-    echo "Skipping doc build, none were modified"
-    # nope, skip docs build
-    exit 0
-fi
-
-
-if [ x"$DOC_BUILD" != x"" ]; then
+if [ "$DOC" ]; then
 
     echo "Will build docs"
-
-    source activate pandas
-    conda install -n pandas -c r r rpy2 --yes
-
-    time sudo apt-get $APT_ARGS install dvipng texlive-latex-base texlive-latex-extra
-
-    mv "$TRAVIS_BUILD_DIR"/doc /tmp
-    cd /tmp/doc
 
     echo ###############################
     echo # Log file for the doc build  #
@@ -40,11 +23,13 @@ if [ x"$DOC_BUILD" != x"" ]; then
     echo # Create and send docs #
     echo ########################
 
-    cd /tmp/doc/build/html
+    cd build/html
     git config --global user.email "pandas-docs-bot@localhost.foo"
     git config --global user.name "pandas-docs-bot"
 
+    # create the repo
     git init
+
     touch README
     git add README
     git commit -m "Initial commit" --allow-empty
@@ -53,7 +38,12 @@ if [ x"$DOC_BUILD" != x"" ]; then
     touch .nojekyll
     git add --all .
     git commit -m "Version" --allow-empty
-    git remote add origin https://$GH_TOKEN@github.com/pandas-docs/pandas-docs-travis
+
+    git remote remove origin
+    git remote add origin "https://${PANDAS_GH_TOKEN}@github.com/pandas-dev/pandas-docs-travis.git"
+    git fetch origin
+    git remote -v
+
     git push origin gh-pages -f
 fi
 

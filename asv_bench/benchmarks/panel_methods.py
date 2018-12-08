@@ -1,56 +1,25 @@
-from .pandas_vb_common import *
+import warnings
+
+import numpy as np
+from pandas import Panel
 
 
-class panel_pct_change_items(object):
-    goal_time = 0.2
+class PanelMethods(object):
 
-    def setup(self):
-        self.index = date_range(start='2000', freq='D', periods=1000)
-        self.panel = Panel(np.random.randn(100, len(self.index), 1000))
+    params = ['items', 'major', 'minor']
+    param_names = ['axis']
 
-    def time_panel_pct_change_items(self):
-        self.panel.pct_change(1, axis='items')
+    def setup(self, axis):
+        with warnings.catch_warnings(record=True):
+            self.panel = Panel(np.random.randn(100, 1000, 100))
 
+    def time_pct_change(self, axis):
+        with warnings.catch_warnings(record=True):
+            self.panel.pct_change(1, axis=axis)
 
-class panel_pct_change_major(object):
-    goal_time = 0.2
-
-    def setup(self):
-        self.index = date_range(start='2000', freq='D', periods=1000)
-        self.panel = Panel(np.random.randn(100, len(self.index), 1000))
-
-    def time_panel_pct_change_major(self):
-        self.panel.pct_change(1, axis='major')
+    def time_shift(self, axis):
+        with warnings.catch_warnings(record=True):
+            self.panel.shift(1, axis=axis)
 
 
-class panel_pct_change_minor(object):
-    goal_time = 0.2
-
-    def setup(self):
-        self.index = date_range(start='2000', freq='D', periods=1000)
-        self.panel = Panel(np.random.randn(100, len(self.index), 1000))
-
-    def time_panel_pct_change_minor(self):
-        self.panel.pct_change(1, axis='minor')
-
-
-class panel_shift(object):
-    goal_time = 0.2
-
-    def setup(self):
-        self.index = date_range(start='2000', freq='D', periods=1000)
-        self.panel = Panel(np.random.randn(100, len(self.index), 1000))
-
-    def time_panel_shift(self):
-        self.panel.shift(1)
-
-
-class panel_shift_minor(object):
-    goal_time = 0.2
-
-    def setup(self):
-        self.index = date_range(start='2000', freq='D', periods=1000)
-        self.panel = Panel(np.random.randn(100, len(self.index), 1000))
-
-    def time_panel_shift_minor(self):
-        self.panel.shift(1, axis='minor')
+from .pandas_vb_common import setup  # noqa: F401

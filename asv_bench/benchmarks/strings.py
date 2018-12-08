@@ -1,393 +1,188 @@
-from .pandas_vb_common import *
-import string
-import itertools as IT
-import pandas.util.testing as testing
+import warnings
+
+import numpy as np
+from pandas import Series, DataFrame
+import pandas.util.testing as tm
 
 
-class strings_cat(object):
-    goal_time = 0.2
-
-    def setup(self):
-        self.many = self.make_series(('matchthis' + string.ascii_uppercase), strlen=19, size=10000)
-        self.few = self.make_series(('matchthis' + (string.ascii_uppercase * 42)), strlen=19, size=10000)
-
-    def time_strings_cat(self):
-        self.many.str.cat(sep=',')
-
-    def make_series(self, letters, strlen, size):
-        return Series([str(x) for x in np.fromiter(IT.cycle(letters), count=(size * strlen), dtype='|S1').view('|S{}'.format(strlen))])
-
-
-class strings_center(object):
-    goal_time = 0.2
+class Methods(object):
 
     def setup(self):
-        self.many = self.make_series(('matchthis' + string.ascii_uppercase), strlen=19, size=10000)
-        self.few = self.make_series(('matchthis' + (string.ascii_uppercase * 42)), strlen=19, size=10000)
+        self.s = Series(tm.makeStringIndex(10**5))
 
-    def time_strings_center(self):
-        self.many.str.center(100)
+    def time_center(self):
+        self.s.str.center(100)
 
-    def make_series(self, letters, strlen, size):
-        return Series([str(x) for x in np.fromiter(IT.cycle(letters), count=(size * strlen), dtype='|S1').view('|S{}'.format(strlen))])
+    def time_count(self):
+        self.s.str.count('A')
+
+    def time_endswith(self):
+        self.s.str.endswith('A')
+
+    def time_extract(self):
+        with warnings.catch_warnings(record=True):
+            self.s.str.extract('(\\w*)A(\\w*)')
+
+    def time_findall(self):
+        self.s.str.findall('[A-Z]+')
+
+    def time_find(self):
+        self.s.str.find('[A-Z]+')
+
+    def time_rfind(self):
+        self.s.str.rfind('[A-Z]+')
+
+    def time_get(self):
+        self.s.str.get(0)
+
+    def time_len(self):
+        self.s.str.len()
+
+    def time_join(self):
+        self.s.str.join(' ')
+
+    def time_match(self):
+        self.s.str.match('A')
+
+    def time_normalize(self):
+        self.s.str.normalize('NFC')
+
+    def time_pad(self):
+        self.s.str.pad(100, side='both')
+
+    def time_partition(self):
+        self.s.str.partition('A')
+
+    def time_rpartition(self):
+        self.s.str.rpartition('A')
+
+    def time_replace(self):
+        self.s.str.replace('A', '\x01\x01')
+
+    def time_translate(self):
+        self.s.str.translate({'A': '\x01\x01'})
+
+    def time_slice(self):
+        self.s.str.slice(5, 15, 2)
+
+    def time_startswith(self):
+        self.s.str.startswith('A')
+
+    def time_strip(self):
+        self.s.str.strip('A')
+
+    def time_rstrip(self):
+        self.s.str.rstrip('A')
+
+    def time_lstrip(self):
+        self.s.str.lstrip('A')
+
+    def time_title(self):
+        self.s.str.title()
+
+    def time_upper(self):
+        self.s.str.upper()
+
+    def time_lower(self):
+        self.s.str.lower()
+
+    def time_wrap(self):
+        self.s.str.wrap(10)
+
+    def time_zfill(self):
+        self.s.str.zfill(10)
 
 
-class strings_contains_few(object):
-    goal_time = 0.2
+class Repeat(object):
+
+    params = ['int', 'array']
+    param_names = ['repeats']
+
+    def setup(self, repeats):
+        N = 10**5
+        self.s = Series(tm.makeStringIndex(N))
+        repeat = {'int': 1, 'array': np.random.randint(1, 3, N)}
+        self.repeat = repeat[repeats]
+
+    def time_repeat(self, repeats):
+        self.s.str.repeat(self.repeat)
+
+
+class Cat(object):
+
+    params = ([0, 3], [None, ','], [None, '-'], [0.0, 0.001, 0.15])
+    param_names = ['other_cols', 'sep', 'na_rep', 'na_frac']
+
+    def setup(self, other_cols, sep, na_rep, na_frac):
+        N = 10 ** 5
+        mask_gen = lambda: np.random.choice([True, False], N,
+                                            p=[1 - na_frac, na_frac])
+        self.s = Series(tm.makeStringIndex(N)).where(mask_gen())
+        if other_cols == 0:
+            # str.cat self-concatenates only for others=None
+            self.others = None
+        else:
+            self.others = DataFrame({i: tm.makeStringIndex(N).where(mask_gen())
+                                     for i in range(other_cols)})
+
+    def time_cat(self, other_cols, sep, na_rep, na_frac):
+        # before the concatenation (one caller + other_cols columns), the total
+        # expected fraction of rows containing any NaN is:
+        # reduce(lambda t, _: t + (1 - t) * na_frac, range(other_cols + 1), 0)
+        # for other_cols=3 and na_frac=0.15, this works out to ~48%
+        self.s.str.cat(others=self.others, sep=sep, na_rep=na_rep)
+
+
+class Contains(object):
+
+    params = [True, False]
+    param_names = ['regex']
+
+    def setup(self, regex):
+        self.s = Series(tm.makeStringIndex(10**5))
+
+    def time_contains(self, regex):
+        self.s.str.contains('A', regex=regex)
+
+
+class Split(object):
+
+    params = [True, False]
+    param_names = ['expand']
+
+    def setup(self, expand):
+        self.s = Series(tm.makeStringIndex(10**5)).str.join('--')
+
+    def time_split(self, expand):
+        self.s.str.split('--', expand=expand)
+
+    def time_rsplit(self, expand):
+        self.s.str.rsplit('--', expand=expand)
+
+
+class Dummies(object):
 
     def setup(self):
-        self.many = self.make_series(('matchthis' + string.ascii_uppercase), strlen=19, size=10000)
-        self.few = self.make_series(('matchthis' + (string.ascii_uppercase * 42)), strlen=19, size=10000)
+        self.s = Series(tm.makeStringIndex(10**5)).str.join('|')
 
-    def time_strings_contains_few(self):
-        self.few.str.contains('matchthis')
-
-    def make_series(self, letters, strlen, size):
-        return Series([str(x) for x in np.fromiter(IT.cycle(letters), count=(size * strlen), dtype='|S1').view('|S{}'.format(strlen))])
+    def time_get_dummies(self):
+        self.s.str.get_dummies('|')
 
 
-class strings_contains_few_noregex(object):
-    goal_time = 0.2
+class Encode(object):
 
     def setup(self):
-        self.many = self.make_series(('matchthis' + string.ascii_uppercase), strlen=19, size=10000)
-        self.few = self.make_series(('matchthis' + (string.ascii_uppercase * 42)), strlen=19, size=10000)
+        self.ser = Series(tm.makeUnicodeIndex())
 
-    def time_strings_contains_few_noregex(self):
-        self.few.str.contains('matchthis', regex=False)
-
-    def make_series(self, letters, strlen, size):
-        return Series([str(x) for x in np.fromiter(IT.cycle(letters), count=(size * strlen), dtype='|S1').view('|S{}'.format(strlen))])
-
-
-class strings_contains_many(object):
-    goal_time = 0.2
-
-    def setup(self):
-        self.many = self.make_series(('matchthis' + string.ascii_uppercase), strlen=19, size=10000)
-        self.few = self.make_series(('matchthis' + (string.ascii_uppercase * 42)), strlen=19, size=10000)
-
-    def time_strings_contains_many(self):
-        self.many.str.contains('matchthis')
-
-    def make_series(self, letters, strlen, size):
-        return Series([str(x) for x in np.fromiter(IT.cycle(letters), count=(size * strlen), dtype='|S1').view('|S{}'.format(strlen))])
-
-
-class strings_contains_many_noregex(object):
-    goal_time = 0.2
-
-    def setup(self):
-        self.many = self.make_series(('matchthis' + string.ascii_uppercase), strlen=19, size=10000)
-        self.few = self.make_series(('matchthis' + (string.ascii_uppercase * 42)), strlen=19, size=10000)
-
-    def time_strings_contains_many_noregex(self):
-        self.many.str.contains('matchthis', regex=False)
-
-    def make_series(self, letters, strlen, size):
-        return Series([str(x) for x in np.fromiter(IT.cycle(letters), count=(size * strlen), dtype='|S1').view('|S{}'.format(strlen))])
-
-
-class strings_count(object):
-    goal_time = 0.2
-
-    def setup(self):
-        self.many = self.make_series(('matchthis' + string.ascii_uppercase), strlen=19, size=10000)
-        self.few = self.make_series(('matchthis' + (string.ascii_uppercase * 42)), strlen=19, size=10000)
-
-    def time_strings_count(self):
-        self.many.str.count('matchthis')
-
-    def make_series(self, letters, strlen, size):
-        return Series([str(x) for x in np.fromiter(IT.cycle(letters), count=(size * strlen), dtype='|S1').view('|S{}'.format(strlen))])
-
-
-class strings_encode_decode(object):
-    goal_time = 0.2
-
-    def setup(self):
-        self.ser = Series(testing.makeUnicodeIndex())
-
-    def time_strings_encode_decode(self):
+    def time_encode_decode(self):
         self.ser.str.encode('utf-8').str.decode('utf-8')
 
 
-class strings_endswith(object):
-    goal_time = 0.2
+class Slice(object):
 
     def setup(self):
-        self.many = self.make_series(('matchthis' + string.ascii_uppercase), strlen=19, size=10000)
-        self.few = self.make_series(('matchthis' + (string.ascii_uppercase * 42)), strlen=19, size=10000)
-
-    def time_strings_endswith(self):
-        self.many.str.endswith('matchthis')
-
-    def make_series(self, letters, strlen, size):
-        return Series([str(x) for x in np.fromiter(IT.cycle(letters), count=(size * strlen), dtype='|S1').view('|S{}'.format(strlen))])
-
-
-class strings_extract(object):
-    goal_time = 0.2
-
-    def setup(self):
-        self.many = self.make_series(('matchthis' + string.ascii_uppercase), strlen=19, size=10000)
-        self.few = self.make_series(('matchthis' + (string.ascii_uppercase * 42)), strlen=19, size=10000)
-
-    def time_strings_extract(self):
-        self.many.str.extract('(\\w*)matchthis(\\w*)')
-
-    def make_series(self, letters, strlen, size):
-        return Series([str(x) for x in np.fromiter(IT.cycle(letters), count=(size * strlen), dtype='|S1').view('|S{}'.format(strlen))])
-
-
-class strings_findall(object):
-    goal_time = 0.2
-
-    def setup(self):
-        self.many = self.make_series(('matchthis' + string.ascii_uppercase), strlen=19, size=10000)
-        self.few = self.make_series(('matchthis' + (string.ascii_uppercase * 42)), strlen=19, size=10000)
-
-    def time_strings_findall(self):
-        self.many.str.findall('[A-Z]+')
-
-    def make_series(self, letters, strlen, size):
-        return Series([str(x) for x in np.fromiter(IT.cycle(letters), count=(size * strlen), dtype='|S1').view('|S{}'.format(strlen))])
-
-
-class strings_get(object):
-    goal_time = 0.2
-
-    def setup(self):
-        self.many = self.make_series(('matchthis' + string.ascii_uppercase), strlen=19, size=10000)
-        self.few = self.make_series(('matchthis' + (string.ascii_uppercase * 42)), strlen=19, size=10000)
-
-    def time_strings_get(self):
-        self.many.str.get(0)
-
-    def make_series(self, letters, strlen, size):
-        return Series([str(x) for x in np.fromiter(IT.cycle(letters), count=(size * strlen), dtype='|S1').view('|S{}'.format(strlen))])
-
-
-class strings_get_dummies(object):
-    goal_time = 0.2
-
-    def setup(self):
-        self.many = self.make_series(('matchthis' + string.ascii_uppercase), strlen=19, size=10000)
-        self.few = self.make_series(('matchthis' + (string.ascii_uppercase * 42)), strlen=19, size=10000)
-        self.s = self.make_series(string.ascii_uppercase, strlen=10, size=10000).str.join('|')
-
-    def time_strings_get_dummies(self):
-        self.s.str.get_dummies('|')
-
-    def make_series(self, letters, strlen, size):
-        return Series([str(x) for x in np.fromiter(IT.cycle(letters), count=(size * strlen), dtype='|S1').view('|S{}'.format(strlen))])
-
-
-class strings_join_split(object):
-    goal_time = 0.2
-
-    def setup(self):
-        self.many = self.make_series(('matchthis' + string.ascii_uppercase), strlen=19, size=10000)
-        self.few = self.make_series(('matchthis' + (string.ascii_uppercase * 42)), strlen=19, size=10000)
-
-    def time_strings_join_split(self):
-        self.many.str.join('--').str.split('--')
-
-    def make_series(self, letters, strlen, size):
-        return Series([str(x) for x in np.fromiter(IT.cycle(letters), count=(size * strlen), dtype='|S1').view('|S{}'.format(strlen))])
-
-
-class strings_join_split_expand(object):
-    goal_time = 0.2
-
-    def setup(self):
-        self.many = self.make_series(('matchthis' + string.ascii_uppercase), strlen=19, size=10000)
-        self.few = self.make_series(('matchthis' + (string.ascii_uppercase * 42)), strlen=19, size=10000)
-
-    def time_strings_join_split_expand(self):
-        self.many.str.join('--').str.split('--', expand=True)
-
-    def make_series(self, letters, strlen, size):
-        return Series([str(x) for x in np.fromiter(IT.cycle(letters), count=(size * strlen), dtype='|S1').view('|S{}'.format(strlen))])
-
-
-class strings_len(object):
-    goal_time = 0.2
-
-    def setup(self):
-        self.many = self.make_series(('matchthis' + string.ascii_uppercase), strlen=19, size=10000)
-        self.few = self.make_series(('matchthis' + (string.ascii_uppercase * 42)), strlen=19, size=10000)
-
-    def time_strings_len(self):
-        self.many.str.len()
-
-    def make_series(self, letters, strlen, size):
-        return Series([str(x) for x in np.fromiter(IT.cycle(letters), count=(size * strlen), dtype='|S1').view('|S{}'.format(strlen))])
-
-
-class strings_lower(object):
-    goal_time = 0.2
-
-    def setup(self):
-        self.many = self.make_series(('matchthis' + string.ascii_uppercase), strlen=19, size=10000)
-        self.few = self.make_series(('matchthis' + (string.ascii_uppercase * 42)), strlen=19, size=10000)
-
-    def time_strings_lower(self):
-        self.many.str.lower()
-
-    def make_series(self, letters, strlen, size):
-        return Series([str(x) for x in np.fromiter(IT.cycle(letters), count=(size * strlen), dtype='|S1').view('|S{}'.format(strlen))])
-
-
-class strings_lstrip(object):
-    goal_time = 0.2
-
-    def setup(self):
-        self.many = self.make_series(('matchthis' + string.ascii_uppercase), strlen=19, size=10000)
-        self.few = self.make_series(('matchthis' + (string.ascii_uppercase * 42)), strlen=19, size=10000)
-
-    def time_strings_lstrip(self):
-        self.many.str.lstrip('matchthis')
-
-    def make_series(self, letters, strlen, size):
-        return Series([str(x) for x in np.fromiter(IT.cycle(letters), count=(size * strlen), dtype='|S1').view('|S{}'.format(strlen))])
-
-
-class strings_match(object):
-    goal_time = 0.2
-
-    def setup(self):
-        self.many = self.make_series(('matchthis' + string.ascii_uppercase), strlen=19, size=10000)
-        self.few = self.make_series(('matchthis' + (string.ascii_uppercase * 42)), strlen=19, size=10000)
-
-    def time_strings_match(self):
-        self.many.str.match('mat..this')
-
-    def make_series(self, letters, strlen, size):
-        return Series([str(x) for x in np.fromiter(IT.cycle(letters), count=(size * strlen), dtype='|S1').view('|S{}'.format(strlen))])
-
-
-class strings_pad(object):
-    goal_time = 0.2
-
-    def setup(self):
-        self.many = self.make_series(('matchthis' + string.ascii_uppercase), strlen=19, size=10000)
-        self.few = self.make_series(('matchthis' + (string.ascii_uppercase * 42)), strlen=19, size=10000)
-
-    def time_strings_pad(self):
-        self.many.str.pad(100, side='both')
-
-    def make_series(self, letters, strlen, size):
-        return Series([str(x) for x in np.fromiter(IT.cycle(letters), count=(size * strlen), dtype='|S1').view('|S{}'.format(strlen))])
-
-
-class strings_repeat(object):
-    goal_time = 0.2
-
-    def setup(self):
-        self.many = self.make_series(('matchthis' + string.ascii_uppercase), strlen=19, size=10000)
-        self.few = self.make_series(('matchthis' + (string.ascii_uppercase * 42)), strlen=19, size=10000)
-
-    def time_strings_repeat(self):
-        self.many.str.repeat(list(IT.islice(IT.cycle(range(1, 4)), len(self.many))))
-
-    def make_series(self, letters, strlen, size):
-        return Series([str(x) for x in np.fromiter(IT.cycle(letters), count=(size * strlen), dtype='|S1').view('|S{}'.format(strlen))])
-
-
-class strings_replace(object):
-    goal_time = 0.2
-
-    def setup(self):
-        self.many = self.make_series(('matchthis' + string.ascii_uppercase), strlen=19, size=10000)
-        self.few = self.make_series(('matchthis' + (string.ascii_uppercase * 42)), strlen=19, size=10000)
-
-    def time_strings_replace(self):
-        self.many.str.replace('(matchthis)', '\x01\x01')
-
-    def make_series(self, letters, strlen, size):
-        return Series([str(x) for x in np.fromiter(IT.cycle(letters), count=(size * strlen), dtype='|S1').view('|S{}'.format(strlen))])
-
-
-class strings_rstrip(object):
-    goal_time = 0.2
-
-    def setup(self):
-        self.many = self.make_series(('matchthis' + string.ascii_uppercase), strlen=19, size=10000)
-        self.few = self.make_series(('matchthis' + (string.ascii_uppercase * 42)), strlen=19, size=10000)
-
-    def time_strings_rstrip(self):
-        self.many.str.rstrip('matchthis')
-
-    def make_series(self, letters, strlen, size):
-        return Series([str(x) for x in np.fromiter(IT.cycle(letters), count=(size * strlen), dtype='|S1').view('|S{}'.format(strlen))])
-
-
-class strings_slice(object):
-    goal_time = 0.2
-
-    def setup(self):
-        self.many = self.make_series(('matchthis' + string.ascii_uppercase), strlen=19, size=10000)
-        self.few = self.make_series(('matchthis' + (string.ascii_uppercase * 42)), strlen=19, size=10000)
-
-    def time_strings_slice(self):
-        self.many.str.slice(5, 15, 2)
-
-    def make_series(self, letters, strlen, size):
-        return Series([str(x) for x in np.fromiter(IT.cycle(letters), count=(size * strlen), dtype='|S1').view('|S{}'.format(strlen))])
-
-
-class strings_startswith(object):
-    goal_time = 0.2
-
-    def setup(self):
-        self.many = self.make_series(('matchthis' + string.ascii_uppercase), strlen=19, size=10000)
-        self.few = self.make_series(('matchthis' + (string.ascii_uppercase * 42)), strlen=19, size=10000)
-
-    def time_strings_startswith(self):
-        self.many.str.startswith('matchthis')
-
-    def make_series(self, letters, strlen, size):
-        return Series([str(x) for x in np.fromiter(IT.cycle(letters), count=(size * strlen), dtype='|S1').view('|S{}'.format(strlen))])
-
-
-class strings_strip(object):
-    goal_time = 0.2
-
-    def setup(self):
-        self.many = self.make_series(('matchthis' + string.ascii_uppercase), strlen=19, size=10000)
-        self.few = self.make_series(('matchthis' + (string.ascii_uppercase * 42)), strlen=19, size=10000)
-
-    def time_strings_strip(self):
-        self.many.str.strip('matchthis')
-
-    def make_series(self, letters, strlen, size):
-        return Series([str(x) for x in np.fromiter(IT.cycle(letters), count=(size * strlen), dtype='|S1').view('|S{}'.format(strlen))])
-
-
-class strings_title(object):
-    goal_time = 0.2
-
-    def setup(self):
-        self.many = self.make_series(('matchthis' + string.ascii_uppercase), strlen=19, size=10000)
-        self.few = self.make_series(('matchthis' + (string.ascii_uppercase * 42)), strlen=19, size=10000)
-
-    def time_strings_title(self):
-        self.many.str.title()
-
-    def make_series(self, letters, strlen, size):
-        return Series([str(x) for x in np.fromiter(IT.cycle(letters), count=(size * strlen), dtype='|S1').view('|S{}'.format(strlen))])
-
-
-class strings_upper(object):
-    goal_time = 0.2
-
-    def setup(self):
-        self.many = self.make_series(('matchthis' + string.ascii_uppercase), strlen=19, size=10000)
-        self.few = self.make_series(('matchthis' + (string.ascii_uppercase * 42)), strlen=19, size=10000)
-
-    def time_strings_upper(self):
-        self.many.str.upper()
-
-    def make_series(self, letters, strlen, size):
-        return Series([str(x) for x in np.fromiter(IT.cycle(letters), count=(size * strlen), dtype='|S1').view('|S{}'.format(strlen))])
+        self.s = Series(['abcdefg', np.nan] * 500000)
+
+    def time_vector_slice(self):
+        # GH 2602
+        self.s.str[:5]

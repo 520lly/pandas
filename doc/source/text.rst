@@ -6,10 +6,9 @@
 
    import numpy as np
    import pandas as pd
-   randn = np.random.randn
+
    np.set_printoptions(precision=4, suppress=True)
-   from pandas.compat import lrange
-   pd.options.display.max_rows=15
+   pd.options.display.max_rows = 15
 
 ======================
 Working with Text Data
@@ -43,8 +42,8 @@ leading or trailing whitespace:
 
 .. ipython:: python
 
-   df = pd.DataFrame(randn(3, 2), columns=[' Column A ', ' Column B '],
-                     index=range(3))
+   df = pd.DataFrame(np.random.randn(3, 2),
+                     columns=[' Column A ', ' Column B '], index=range(3))
    df
 
 Since ``df.columns`` is an Index object, we can use the ``.str`` accessor
@@ -55,8 +54,8 @@ Since ``df.columns`` is an Index object, we can use the ``.str`` accessor
    df.columns.str.lower()
 
 These string methods can then be used to clean up the columns as needed.
-Here we are removing leading and trailing whitespaces, lowercasing all names,
-and replacing any remaining whitespaces with underscores:
+Here we are removing leading and trailing white spaces, lower casing all names,
+and replacing any remaining white spaces with underscores:
 
 .. ipython:: python
 
@@ -99,7 +98,7 @@ Elements in the split lists can be accessed using ``get`` or ``[]`` notation:
    s2.str.split('_').str.get(1)
    s2.str.split('_').str[1]
 
-Easy to expand this to return a DataFrame using ``expand``.
+It is easy to expand this to return a DataFrame using ``expand``.
 
 .. ipython:: python
 
@@ -118,8 +117,8 @@ i.e., from the end of the string to the beginning of the string:
 
    s2.str.rsplit('_', expand=True, n=1)
 
-Methods like ``replace`` and ``findall`` take `regular expressions
-<https://docs.python.org/2/library/re.html>`__, too:
+``replace`` by default replaces `regular expressions
+<https://docs.python.org/3/library/re.html>`__:
 
 .. ipython:: python
 
@@ -146,6 +145,197 @@ following code will cause trouble because of the regular expression meaning of
    # We need to escape the special character (for >1 len patterns)
    dollars.str.replace(r'-\$', '-')
 
+.. versionadded:: 0.23.0
+
+If you do want literal replacement of a string (equivalent to
+:meth:`str.replace`), you can set the optional ``regex`` parameter to
+``False``, rather than escaping each character. In this case both ``pat``
+and ``repl`` must be strings:
+
+.. ipython:: python
+
+    # These lines are equivalent
+    dollars.str.replace(r'-\$', '-')
+    dollars.str.replace('-$', '-', regex=False)
+
+.. versionadded:: 0.20.0
+
+The ``replace`` method can also take a callable as replacement. It is called
+on every ``pat`` using :func:`re.sub`. The callable should expect one
+positional argument (a regex object) and return a string.
+
+.. ipython:: python
+
+   # Reverse every lowercase alphabetic word
+   pat = r'[a-z]+'
+
+   def repl(m):
+       return m.group(0)[::-1]
+
+   pd.Series(['foo 123', 'bar baz', np.nan]).str.replace(pat, repl)
+
+   # Using regex groups
+   pat = r"(?P<one>\w+) (?P<two>\w+) (?P<three>\w+)"
+
+   def repl(m):
+       return m.group('two').swapcase()
+
+   pd.Series(['Foo Bar Baz', np.nan]).str.replace(pat, repl)
+
+.. versionadded:: 0.20.0
+
+The ``replace`` method also accepts a compiled regular expression object
+from :func:`re.compile` as a pattern. All flags should be included in the
+compiled regular expression object.
+
+.. ipython:: python
+
+   import re
+   regex_pat = re.compile(r'^.a|dog', flags=re.IGNORECASE)
+   s3.str.replace(regex_pat, 'XX-XX ')
+
+Including a ``flags`` argument when calling ``replace`` with a compiled
+regular expression object will raise a ``ValueError``.
+
+.. ipython::
+
+    @verbatim
+    In [1]: s3.str.replace(regex_pat, 'XX-XX ', flags=re.IGNORECASE)
+    ---------------------------------------------------------------------------
+    ValueError: case and flags cannot be set when pat is a compiled regex
+
+.. _text.concatenate:
+
+Concatenation
+-------------
+
+There are several ways to concatenate a ``Series`` or ``Index``, either with itself or others, all based on :meth:`~Series.str.cat`,
+resp. ``Index.str.cat``.
+
+Concatenating a single Series into a string
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The content of a ``Series`` (or ``Index``) can be concatenated:
+
+.. ipython:: python
+
+    s = pd.Series(['a', 'b', 'c', 'd'])
+    s.str.cat(sep=',')
+
+If not specified, the keyword ``sep`` for the separator defaults to the empty string, ``sep=''``:
+
+.. ipython:: python
+
+    s.str.cat()
+
+By default, missing values are ignored. Using ``na_rep``, they can be given a representation:
+
+.. ipython:: python
+
+    t = pd.Series(['a', 'b', np.nan, 'd'])
+    t.str.cat(sep=',')
+    t.str.cat(sep=',', na_rep='-')
+
+Concatenating a Series and something list-like into a Series
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The first argument to :meth:`~Series.str.cat` can be a list-like object, provided that it matches the length of the calling ``Series`` (or ``Index``).
+
+.. ipython:: python
+
+    s.str.cat(['A', 'B', 'C', 'D'])
+
+Missing values on either side will result in missing values in the result as well, *unless* ``na_rep`` is specified:
+
+.. ipython:: python
+
+    s.str.cat(t)
+    s.str.cat(t, na_rep='-')
+
+Concatenating a Series and something array-like into a Series
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. versionadded:: 0.23.0
+
+The parameter ``others`` can also be two-dimensional. In this case, the number or rows must match the lengths of the calling ``Series`` (or ``Index``).
+
+.. ipython:: python
+
+    d = pd.concat([t, s], axis=1)
+    s
+    d
+    s.str.cat(d, na_rep='-')
+
+Concatenating a Series and an indexed object into a Series, with alignment
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. versionadded:: 0.23.0
+
+For concatenation with a ``Series`` or ``DataFrame``, it is possible to align the indexes before concatenation by setting
+the ``join``-keyword.
+
+.. ipython:: python
+   :okwarning:
+
+   u = pd.Series(['b', 'd', 'a', 'c'], index=[1, 3, 0, 2])
+   s
+   u
+   s.str.cat(u)
+   s.str.cat(u, join='left')
+
+.. warning::
+
+    If the ``join`` keyword is not passed, the method :meth:`~Series.str.cat` will currently fall back to the behavior before version 0.23.0 (i.e. no alignment),
+    but a ``FutureWarning`` will be raised if any of the involved indexes differ, since this default will change to ``join='left'`` in a future version.
+
+The usual options are available for ``join`` (one of ``'left', 'outer', 'inner', 'right'``).
+In particular, alignment also means that the different lengths do not need to coincide anymore.
+
+.. ipython:: python
+
+    v = pd.Series(['z', 'a', 'b', 'd', 'e'], index=[-1, 0, 1, 3, 4])
+    s
+    v
+    s.str.cat(v, join='left', na_rep='-')
+    s.str.cat(v, join='outer', na_rep='-')
+
+The same alignment can be used when ``others`` is a ``DataFrame``:
+
+.. ipython:: python
+
+    f = d.loc[[3, 2, 1, 0], :]
+    s
+    f
+    s.str.cat(f, join='left', na_rep='-')
+
+Concatenating a Series and many objects into a Series
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+All one-dimensional list-likes can be combined in a list-like container (including iterators, ``dict``-views, etc.):
+
+.. ipython:: python
+
+    s
+    u
+    s.str.cat([u.array,
+               u.index.astype(str).array], na_rep='-')
+
+All elements must match in length to the calling ``Series`` (or ``Index``), except those having an index if ``join`` is not None:
+
+.. ipython:: python
+
+    v
+    s.str.cat([u, v], join='outer', na_rep='-')
+
+If using ``join='right'`` on a list of ``others`` that contains different indexes,
+the union of these indexes will be used as the basis for the final concatenation:
+
+.. ipython:: python
+
+    u.loc[[3]]
+    v.loc[[-1, 0]]
+    s.str.cat([u.loc[[3]], v.loc[[-1, 0]]], join='right', na_rep='-')
+
 Indexing with ``.str``
 ----------------------
 
@@ -171,8 +361,6 @@ Extracting Substrings
 Extract first match in each subject (extract)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. versionadded:: 0.13.0
-
 .. warning::
 
    In version 0.18.0, ``extract`` gained the ``expand`` argument. When
@@ -180,10 +368,11 @@ Extract first match in each subject (extract)
    ``DataFrame``, depending on the subject and regular expression
    pattern (same behavior as pre-0.18.0). When ``expand=True`` it
    always returns a ``DataFrame``, which is more consistent and less
-   confusing from the perspective of a user.
+   confusing from the perspective of a user. ``expand=True`` is the
+   default since version 0.23.0.
 
 The ``extract`` method accepts a `regular expression
-<https://docs.python.org/2/library/re.html>`__ with at least one
+<https://docs.python.org/3/library/re.html>`__ with at least one
 capture group.
 
 Extracting a regular expression with more than one group returns a
@@ -191,7 +380,7 @@ DataFrame with one column per group.
 
 .. ipython:: python
 
-   pd.Series(['a1', 'b2', 'c3']).str.extract('([ab])(\d)', expand=False)
+   pd.Series(['a1', 'b2', 'c3']).str.extract(r'([ab])(\d)', expand=False)
 
 Elements that do not match return a row filled with ``NaN``. Thus, a
 Series of messy strings can be "converted" into a like-indexed Series
@@ -204,13 +393,14 @@ Named groups like
 
 .. ipython:: python
 
-   pd.Series(['a1', 'b2', 'c3']).str.extract('(?P<letter>[ab])(?P<digit>\d)', expand=False)
+   pd.Series(['a1', 'b2', 'c3']).str.extract(r'(?P<letter>[ab])(?P<digit>\d)',
+                                             expand=False)
 
 and optional groups like
 
 .. ipython:: python
 
-   pd.Series(['a1', 'b2', '3']).str.extract('([ab])?(\d)', expand=False)
+   pd.Series(['a1', 'b2', '3']).str.extract(r'([ab])?(\d)', expand=False)
 
 can also be used. Note that any capture group names in the regular
 expression will be used for column names; otherwise capture group
@@ -221,16 +411,16 @@ with one column if ``expand=True``.
 
 .. ipython:: python
 
-   pd.Series(['a1', 'b2', 'c3']).str.extract('[ab](\d)', expand=True)
+   pd.Series(['a1', 'b2', 'c3']).str.extract(r'[ab](\d)', expand=True)
 
 It returns a Series if ``expand=False``.
 
 .. ipython:: python
 
-   pd.Series(['a1', 'b2', 'c3']).str.extract('[ab](\d)', expand=False)
+   pd.Series(['a1', 'b2', 'c3']).str.extract(r'[ab](\d)', expand=False)
 
 Calling on an ``Index`` with a regex with exactly one capture group
-returns a ``DataFrame`` with one column if ``expand=True``,
+returns a ``DataFrame`` with one column if ``expand=True``.
 
 .. ipython:: python
 
@@ -332,33 +522,20 @@ You can check whether elements contain a pattern:
 
 .. ipython:: python
 
-   pattern = r'[a-z][0-9]'
+   pattern = r'[0-9][a-z]'
    pd.Series(['1', '2', '3a', '3b', '03c']).str.contains(pattern)
 
-or match a pattern:
-
+Or whether elements match a pattern:
 
 .. ipython:: python
 
-   pd.Series(['1', '2', '3a', '3b', '03c']).str.match(pattern, as_indexer=True)
+   pd.Series(['1', '2', '3a', '3b', '03c']).str.match(pattern)
 
 The distinction between ``match`` and ``contains`` is strictness: ``match``
 relies on strict ``re.match``, while ``contains`` relies on ``re.search``.
 
-.. warning::
-
-   In previous versions, ``match`` was for *extracting* groups,
-   returning a not-so-convenient Series of tuples. The new method ``extract``
-   (described in the previous section) is now preferred.
-
-   This old, deprecated behavior of ``match`` is still the default. As
-   demonstrated above, use the new behavior by setting ``as_indexer=True``.
-   In this mode, ``match`` is analogous to ``contains``, returning a boolean
-   Series. The new behavior will become the default behavior in a future
-   release.
-
 Methods like ``match``, ``contains``, ``startswith``, and ``endswith`` take
- an extra ``na`` argument so missing values can be considered True or False:
+an extra ``na`` argument so missing values can be considered True or False:
 
 .. ipython:: python
 
@@ -406,7 +583,7 @@ Method Summary
     :meth:`~Series.str.join`;Join strings in each element of the Series with passed separator
     :meth:`~Series.str.get_dummies`;Split strings on the delimiter returning DataFrame of dummy variables
     :meth:`~Series.str.contains`;Return boolean array if each string contains pattern/regex
-    :meth:`~Series.str.replace`;Replace occurrences of pattern/regex with some other string
+    :meth:`~Series.str.replace`;Replace occurrences of pattern/regex/string with some other string or the return value of a callable given the occurrence
     :meth:`~Series.str.repeat`;Duplicate values (``s.str.repeat(3)`` equivalent to ``x * 3``)
     :meth:`~Series.str.pad`;"Add whitespace to left, right, or both sides of strings"
     :meth:`~Series.str.center`;Equivalent to ``str.center``

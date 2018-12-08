@@ -6,7 +6,7 @@
 
    import pandas as pd
    import numpy as np
-   pd.options.display.max_rows=15
+   pd.options.display.max_rows = 15
 
 Comparison with R / R libraries
 *******************************
@@ -18,11 +18,11 @@ was started to provide a more detailed look at the `R language
 party libraries as they relate to ``pandas``. In comparisons with R and CRAN
 libraries, we care about the following things:
 
-  - **Functionality / flexibility**: what can/cannot be done with each tool
-  - **Performance**: how fast are operations. Hard numbers/benchmarks are
-    preferable
-  - **Ease-of-use**: Is one tool easier/harder to use (you may have to be
-    the judge of this, given side-by-side code comparisons)
+* **Functionality / flexibility**: what can/cannot be done with each tool
+* **Performance**: how fast are operations. Hard numbers/benchmarks are
+  preferable
+* **Ease-of-use**: Is one tool easier/harder to use (you may have to be
+  the judge of this, given side-by-side code comparisons)
 
 This page is also here to offer a bit of a translation guide for users of these
 R packages.
@@ -165,16 +165,15 @@ function.
 
 .. ipython:: python
 
-   df = pd.DataFrame({
-     'v1': [1,3,5,7,8,3,5,np.nan,4,5,7,9],
-     'v2': [11,33,55,77,88,33,55,np.nan,44,55,77,99],
-     'by1': ["red", "blue", 1, 2, np.nan, "big", 1, 2, "red", 1, np.nan, 12],
-     'by2': ["wet", "dry", 99, 95, np.nan, "damp", 95, 99, "red", 99, np.nan,
-             np.nan]
-   })
+   df = pd.DataFrame(
+       {'v1': [1, 3, 5, 7, 8, 3, 5, np.nan, 4, 5, 7, 9],
+        'v2': [11, 33, 55, 77, 88, 33, 55, np.nan, 44, 55, 77, 99],
+        'by1': ["red", "blue", 1, 2, np.nan, "big", 1, 2, "red", 1, np.nan, 12],
+        'by2': ["wet", "dry", 99, 95, np.nan, "damp", 95, 99, "red", 99, np.nan,
+                np.nan]})
 
-   g = df.groupby(['by1','by2'])
-   g[['v1','v2']].mean()
+   g = df.groupby(['by1', 'by2'])
+   g[['v1', 'v2']].mean()
 
 For more details and examples see :ref:`the groupby documentation
 <groupby.split>`.
@@ -195,7 +194,7 @@ The :meth:`~pandas.DataFrame.isin` method is similar to R ``%in%`` operator:
 
 .. ipython:: python
 
-   s = pd.Series(np.arange(5),dtype=np.float32)
+   s = pd.Series(np.arange(5), dtype=np.float32)
    s.isin([2, 4])
 
 The ``match`` function returns a vector of the positions of matches
@@ -205,14 +204,6 @@ of its first argument in its second:
 
    s <- 0:4
    match(s, c(2,4))
-
-The :meth:`~pandas.core.groupby.GroupBy.apply` method can be used to replicate
-this:
-
-.. ipython:: python
-
-   s = pd.Series(np.arange(5),dtype=np.float32)
-   pd.Series(pd.match(s,[2,4],np.nan))
 
 For more details and examples see :ref:`the reshaping documentation
 <indexing.basics.indexing_isin>`.
@@ -242,11 +233,11 @@ In ``pandas`` we may use :meth:`~pandas.pivot_table` method to handle this:
    import random
    import string
 
-   baseball = pd.DataFrame({
-      'team': ["team %d" % (x+1) for x in range(5)]*5,
-      'player': random.sample(list(string.ascii_lowercase),25),
-      'batting avg': np.random.uniform(.200, .400, 25)
-      })
+   baseball = pd.DataFrame(
+       {'team': ["team %d" % (x + 1) for x in range(5)] * 5,
+        'player': random.sample(list(string.ascii_lowercase), 25),
+        'batting avg': np.random.uniform(.200, .400, 25)})
+
    baseball.pivot_table(values='batting avg', columns='team', aggfunc=np.max)
 
 For more details and examples see :ref:`the reshaping documentation
@@ -254,8 +245,6 @@ For more details and examples see :ref:`the reshaping documentation
 
 |subset|_
 ~~~~~~~~~~
-
-.. versionadded:: 0.13
 
 The :meth:`~pandas.DataFrame.query` method is similar to the base R ``subset``
 function. In R you might want to get the rows of a ``data.frame`` where one
@@ -284,8 +273,6 @@ For more details and examples see :ref:`the query documentation
 
 |with|_
 ~~~~~~~~
-
-.. versionadded:: 0.13
 
 An expression using a data.frame called ``df`` in R with the columns ``a`` and
 ``b`` would be evaluated using ``with`` like so:
@@ -353,15 +340,13 @@ In ``pandas`` the equivalent expression, using the
 
 .. ipython:: python
 
-   df = pd.DataFrame({
-       'x': np.random.uniform(1., 168., 120),
-       'y': np.random.uniform(7., 334., 120),
-       'z': np.random.uniform(1.7, 20.7, 120),
-       'month': [5,6,7,8]*30,
-       'week': np.random.randint(1,4, 120)
-   })
+   df = pd.DataFrame({'x': np.random.uniform(1., 168., 120),
+                      'y': np.random.uniform(7., 334., 120),
+                      'z': np.random.uniform(1.7, 20.7, 120),
+                      'month': [5, 6, 7, 8] * 30,
+                      'week': np.random.randint(1, 4, 120)})
 
-   grouped = df.groupby(['month','week'])
+   grouped = df.groupby(['month', 'week'])
    grouped['x'].agg([np.mean, np.std])
 
 
@@ -386,8 +371,8 @@ In Python, since ``a`` is a list, you can simply use list comprehension.
 
 .. ipython:: python
 
-   a = np.array(list(range(1,24))+[np.NAN]).reshape(2,3,4)
-   pd.DataFrame([tuple(list(x)+[val]) for x, val in np.ndenumerate(a)])
+   a = np.array(list(range(1, 24)) + [np.NAN]).reshape(2, 3, 4)
+   pd.DataFrame([tuple(list(x) + [val]) for x, val in np.ndenumerate(a)])
 
 |meltlist|_
 ~~~~~~~~~~~~
@@ -405,11 +390,11 @@ In Python, this list would be a list of tuples, so
 
 .. ipython:: python
 
-   a = list(enumerate(list(range(1,5))+[np.NAN]))
+   a = list(enumerate(list(range(1, 5)) + [np.NAN]))
    pd.DataFrame(a)
 
 For more details and examples see :ref:`the Into to Data Structures
-documentation <basics.dataframe.from_items>`.
+documentation <dsintro>`.
 
 |meltdf|_
 ~~~~~~~~~~~~~~~~
@@ -431,12 +416,13 @@ In Python, the :meth:`~pandas.melt` method is the R equivalent:
 
 .. ipython:: python
 
-   cheese = pd.DataFrame({'first' : ['John', 'Mary'],
-                       'last' : ['Doe', 'Bo'],
-                       'height' : [5.5, 6.0],
-                       'weight' : [130, 150]})
+   cheese = pd.DataFrame({'first': ['John', 'Mary'],
+                          'last': ['Doe', 'Bo'],
+                          'height': [5.5, 6.0],
+                          'weight': [130, 150]})
+
    pd.melt(cheese, id_vars=['first', 'last'])
-   cheese.set_index(['first', 'last']).stack() # alternative way
+   cheese.set_index(['first', 'last']).stack()  # alternative way
 
 For more details and examples see :ref:`the reshaping documentation
 <reshaping.melt>`.
@@ -464,16 +450,15 @@ In Python the best way is to make use of :meth:`~pandas.pivot_table`:
 
 .. ipython:: python
 
-   df = pd.DataFrame({
-        'x': np.random.uniform(1., 168., 12),
-        'y': np.random.uniform(7., 334., 12),
-        'z': np.random.uniform(1.7, 20.7, 12),
-        'month': [5,6,7]*4,
-        'week': [1,2]*6
-   })
+   df = pd.DataFrame({'x': np.random.uniform(1., 168., 12),
+                      'y': np.random.uniform(7., 334., 12),
+                      'z': np.random.uniform(1.7, 20.7, 12),
+                      'month': [5, 6, 7] * 4,
+                      'week': [1, 2] * 6})
+
    mdf = pd.melt(df, id_vars=['month', 'week'])
-   pd.pivot_table(mdf, values='value', index=['variable','week'],
-                    columns=['month'], aggfunc=np.mean)
+   pd.pivot_table(mdf, values='value', index=['variable', 'week'],
+                  columns=['month'], aggfunc=np.mean)
 
 Similarly for ``dcast`` which uses a data.frame called ``df`` in R to
 aggregate information based on ``Animal`` and ``FeedType``:
@@ -503,21 +488,20 @@ using :meth:`~pandas.pivot_table`:
        'Amount': [10, 7, 4, 2, 5, 6, 2],
    })
 
-   df.pivot_table(values='Amount', index='Animal', columns='FeedType', aggfunc='sum')
+   df.pivot_table(values='Amount', index='Animal', columns='FeedType',
+                  aggfunc='sum')
 
 The second approach is to use the :meth:`~pandas.DataFrame.groupby` method:
 
 .. ipython:: python
 
-   df.groupby(['Animal','FeedType'])['Amount'].sum()
+   df.groupby(['Animal', 'FeedType'])['Amount'].sum()
 
 For more details and examples see :ref:`the reshaping documentation
 <reshaping.pivot>` or :ref:`the groupby documentation<groupby.split>`.
 
 |factor|_
 ~~~~~~~~~
-
-.. versionadded:: 0.15
 
 pandas has a data type for categorical data.
 
@@ -530,8 +514,8 @@ In pandas this is accomplished with ``pd.cut`` and ``astype("category")``:
 
 .. ipython:: python
 
-   pd.cut(pd.Series([1,2,3,4,5,6]), 3)
-   pd.Series([1,2,3,2,2,3]).astype("category")
+   pd.cut(pd.Series([1, 2, 3, 4, 5, 6]), 3)
+   pd.Series([1, 2, 3, 2, 2, 3]).astype("category")
 
 For more details and examples see :ref:`categorical introduction <categorical>` and the
 :ref:`API documentation <api.categorical>`. There is also a documentation regarding the
